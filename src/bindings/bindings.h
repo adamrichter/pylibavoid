@@ -5,5 +5,6 @@
 namespace pylibavoid {
 
 void register_geometry(pybind11::module_& m);
+void register_router(pybind11::module_& m);
 
 }  // namespace pylibavoid
