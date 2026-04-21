@@ -96,7 +96,10 @@ find_package(pybind11 CONFIG REQUIRED)
 
 pybind11_add_module(_core MODULE
     src/bindings/module.cpp
+    src/bindings/geometry.cpp
 )
+
+target_include_directories(_core PRIVATE src/bindings)
 
 target_link_libraries(_core PRIVATE libavoid_static)
 

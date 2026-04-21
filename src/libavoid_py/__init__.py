@@ -1,10 +1,32 @@
 """libavoid-py — Python bindings for libavoid.
 
-Phase 1 exposes a single function, :func:`version`, that returns the
-upstream libavoid commit hash this wheel was built against. The routing
-API lands in phase 2.
+Phase 2 progressively exposes the routing surface. Phase 2 PR 1 adds
+the geometry primitives (:class:`Point`, :class:`Box`, :class:`Polygon`,
+:class:`Rectangle`, and the :data:`PolyLine` / :data:`Vector` aliases).
+The :class:`Router`, :class:`ShapeRef`, and :class:`ConnRef` types land
+in the PRs that follow.
 """
 
-from ._core import version
+from ._core import (
+    XDIM,
+    YDIM,
+    Box,
+    Point,
+    Polygon,
+    PolyLine,
+    Rectangle,
+    Vector,
+    version,
+)
 
-__all__ = ["version"]
+__all__ = [
+    "XDIM",
+    "YDIM",
+    "Box",
+    "Point",
+    "PolyLine",
+    "Polygon",
+    "Rectangle",
+    "Vector",
+    "version",
+]
