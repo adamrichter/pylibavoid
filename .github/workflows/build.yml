@@ -10,6 +10,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Opt the runner into Node.js 24 for JS-based actions. Node 20 is
+# deprecated (default flips 2026-06-02, removed 2026-09-16); setting
+# this now silences the runner warning and keeps our existing action
+# pins unchanged. Revisit when we next bump action versions.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   wheels:
     name: wheels on ${{ matrix.os }}

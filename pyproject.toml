@@ -29,9 +29,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/adam1richter/pylibavoid"
-Source = "https://github.com/adam1richter/pylibavoid"
-Issues = "https://github.com/adam1richter/pylibavoid/issues"
+Homepage = "https://github.com/adamrichter/pylibavoid"
+Source = "https://github.com/adamrichter/pylibavoid"
+Issues = "https://github.com/adamrichter/pylibavoid/issues"
 
 [tool.scikit-build]
 minimum-version = "0.10"
