@@ -15,8 +15,14 @@ from ._core import (
     Polygon,
     PolyLine,
     Rectangle,
+    Router,
+    RouterFlag,
+    RoutingOption,
+    RoutingParameter,
     Vector,
+    chooseSensibleParamValue,
     version,
+    zeroParamValue,
 )
 
 __all__ = [
@@ -27,6 +33,12 @@ __all__ = [
     "PolyLine",
     "Polygon",
     "Rectangle",
+    "Router",
+    "RouterFlag",
+    "RoutingOption",
+    "RoutingParameter",
     "Vector",
+    "chooseSensibleParamValue",
     "version",
+    "zeroParamValue",
 ]

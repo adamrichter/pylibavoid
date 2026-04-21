@@ -1,8 +1,12 @@
 from collections.abc import Iterator
+from enum import IntEnum
 from typing import overload
 
 XDIM: int
 YDIM: int
+
+zeroParamValue: float
+chooseSensibleParamValue: float
 
 def version() -> str: ...
 
@@ -63,3 +67,44 @@ class Rectangle(Polygon):
     def __init__(self, top_left: Point, bottom_right: Point) -> None: ...
     @overload
     def __init__(self, centre: Point, width: float, height: float) -> None: ...
+
+class RouterFlag(IntEnum):
+    PolyLineRouting = 1
+    OrthogonalRouting = 2
+
+class RoutingParameter(IntEnum):
+    segmentPenalty = 0
+    anglePenalty = 1
+    crossingPenalty = 2
+    clusterCrossingPenalty = 3
+    fixedSharedPathPenalty = 4
+    portDirectionPenalty = 5
+    shapeBufferDistance = 6
+    idealNudgingDistance = 7
+    reverseDirectionPenalty = 8
+
+class RoutingOption(IntEnum):
+    nudgeOrthogonalSegmentsConnectedToShapes = 0
+    improveHyperedgeRoutesMovingJunctions = 1
+    penaliseOrthogonalSharedPathsAtConnEnds = 2
+    nudgeOrthogonalTouchingColinearSegments = 3
+    performUnifyingNudgingPreprocessingStep = 4
+    improveHyperedgeRoutesMovingAddingAndDeletingJunctions = 5
+    nudgeSharedPathsWithCommonEndPoint = 6
+
+class Router:
+    def __init__(self, flags: int) -> None: ...
+    def process_transaction(self) -> bool: ...
+    def set_transaction_use(self, use: bool) -> None: ...
+    def transaction_use(self) -> bool: ...
+    def set_routing_parameter(
+        self, parameter: RoutingParameter, value: float = ...
+    ) -> None: ...
+    def routing_parameter(self, parameter: RoutingParameter) -> float: ...
+    def set_routing_option(self, option: RoutingOption, value: bool) -> None: ...
+    def routing_option(self, option: RoutingOption) -> bool: ...
+    def set_routing_penalty(
+        self, parameter: RoutingParameter, value: float = ...
+    ) -> None: ...
+    def exists_invalid_orthogonal_paths(self) -> bool: ...
+    def output_diagram(self, name: str = "") -> None: ...
