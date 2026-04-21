@@ -1,0 +1,107 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.13"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "libavoid-py"
+version = "0.0.0"
+description = "Python bindings for libavoid, a C++ library for orthogonal and polyline connector routing"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "LGPL-2.1-or-later"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [
+    { name = "Adam Richter", email = "adam1richter@gmail.com" },
+]
+keywords = ["libavoid", "routing", "connector", "orthogonal", "graph", "bindings"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+Homepage = "https://github.com/adam1richter/pylibavoid"
+Source = "https://github.com/adam1richter/pylibavoid"
+Issues = "https://github.com/adam1richter/pylibavoid/issues"
+
+[tool.scikit-build]
+minimum-version = "0.10"
+cmake.version = ">=3.18"
+cmake.build-type = "Release"
+wheel.packages = ["src/libavoid_py"]
+
+# The submodule isn't tracked by the parent repo's git index, so the
+# default sdist logic (git ls-files) wouldn't include libavoid sources.
+# Force-include the files we need to build from an sdist, and exclude
+# anything under vendor/adaptagrams that we don't actually compile.
+sdist.include = [
+    "vendor/adaptagrams/cola/libavoid/*.cpp",
+    "vendor/adaptagrams/cola/libavoid/*.h",
+    "vendor/adaptagrams/cola/LICENSE",
+    "vendor/adaptagrams/README.md",
+]
+# Default sdist tree walk picks up a lot we do not need. Excludes win
+# over includes, so anything listed here is dropped even if a parent
+# glob would have included it.
+sdist.exclude = [
+    ".claude",
+    ".venv",
+    ".git",
+    ".github/dependabot.yml",
+    "vendor/adaptagrams/.git*",
+    "vendor/adaptagrams/.github",
+    "vendor/adaptagrams/experimental",
+    "vendor/adaptagrams/cola/libcola",
+    "vendor/adaptagrams/cola/libdialect",
+    "vendor/adaptagrams/cola/libproject",
+    "vendor/adaptagrams/cola/libtopology",
+    "vendor/adaptagrams/cola/libvpsc",
+    "vendor/adaptagrams/cola/libavoid/tests",
+    "vendor/adaptagrams/cola/libavoid/msctests",
+    "vendor/adaptagrams/cola/autogen.sh",
+    "vendor/adaptagrams/cola/build*.sh",
+    "vendor/adaptagrams/cola/configure.ac",
+    "vendor/adaptagrams/cola/Makefile*",
+    "vendor/adaptagrams/cola/swig-*.py",
+    "vendor/adaptagrams/cola/adaptagrams.i",
+    "vendor/adaptagrams/cola/Doxyfile",
+    "vendor/adaptagrams/cola/INSTALL",
+    "vendor/adaptagrams/cola/NEWS",
+    "vendor/adaptagrams/cola/README",
+    "vendor/adaptagrams/cola/ChangeLog",
+    "vendor/adaptagrams/cola/COPYING",
+    "vendor/adaptagrams/cola/AUTHORS",
+    "vendor/adaptagrams/cola/__init__.py",
+    "vendor/adaptagrams/cola/.gitignore",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.cibuildwheel]
+build = "cp311-* cp312-* cp313-*"
+skip = "*-musllinux_* *-win32 *-manylinux_i686"
+build-verbosity = 1
+test-command = "pytest {project}/tests/unit"
+test-requires = ["pytest"]
+# Skip tests on CPython 3.13 free-threaded builds; pybind11 GIL story
+# is evolving and not in scope for phase 1.
+test-skip = "cp313t-*"
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux_2_28"
+archs = ["x86_64"]
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]
