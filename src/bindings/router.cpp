@@ -5,6 +5,7 @@
 #include <string>
 
 #include "libavoid/router.h"
+#include "libavoid/shape.h"
 
 namespace py = pybind11;
 
@@ -118,6 +119,38 @@ void register_router(py::module_& m) {
             "Return ``True`` if any orthogonal connector in the current "
             "layout fails internal validity checks. Used by a handful of "
             "upstream tests as their sole pass/fail signal.")
+        .def("delete_shape", &Avoid::Router::deleteShape, py::arg("shape"),
+            "Queue the removal of ``shape`` from the router. When the "
+            "next :py:meth:`process_transaction` runs, the shape's "
+            "underlying C++ object is freed; after that the Python "
+            "ShapeRef wrapper is invalid and must not be touched. "
+            "This mirrors libavoid's C++ semantics — the router, not "
+            "the caller, owns shapes.\n"
+            "\n"
+            "Important: call :py:meth:`process_transaction` between "
+            "adding a shape and deleting it. libavoid's action queue "
+            "sorts so that a pending ShapeAdd and ShapeRemove for the "
+            "same object execute in an order that dereferences the "
+            "freed pointer. A ``COLA_ASSERT`` in libavoid warns of "
+            "this but it is compiled out of release builds, so the "
+            "failure mode is a silent use-after-free rather than an "
+            "exception.")
+        .def("move_shape",
+            [](Avoid::Router& r, Avoid::ShapeRef* shape, const Avoid::Polygon& newPoly) {
+                r.moveShape(shape, newPoly);
+            },
+            py::arg("shape"), py::arg("new_polygon"),
+            "Replace a shape's polygon boundary, marking affected "
+            "connectors as needing rerouting. Call "
+            ":py:meth:`process_transaction` to actually reroute them "
+            "when transactions are enabled (the default).")
+        .def("move_shape",
+            [](Avoid::Router& r, Avoid::ShapeRef* shape, double dx, double dy) {
+                r.moveShape(shape, dx, dy);
+            },
+            py::arg("shape"), py::arg("dx"), py::arg("dy"),
+            "Translate a shape by (``dx``, ``dy``). Same rerouting "
+            "semantics as the polygon-form overload.")
         .def("output_diagram",
             [](Avoid::Router& r, const std::string& name) {
                 r.outputDiagram(name);
