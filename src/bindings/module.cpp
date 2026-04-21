@@ -23,4 +23,5 @@ PYBIND11_MODULE(_core, m) {
 
     pylibavoid::register_geometry(m);
     pylibavoid::register_router(m);
+    pylibavoid::register_shape(m);
 }
