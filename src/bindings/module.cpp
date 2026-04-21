@@ -22,6 +22,12 @@ PYBIND11_MODULE(_core, m) {
     );
 
     pylibavoid::register_geometry(m);
+    // Register_connector declares ConnRef and ConnEnd, which Router's
+    // delete_connector method and ShapeRef's attached_connectors both
+    // reference; register it before the Router and ShapeRef bindings
+    // so pybind11 knows about those types when building the method
+    // signatures.
+    pylibavoid::register_connector(m);
     pylibavoid::register_router(m);
     pylibavoid::register_shape(m);
 }

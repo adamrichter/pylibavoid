@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "libavoid/connector.h"
 #include "libavoid/router.h"
 #include "libavoid/shape.h"
 
@@ -151,6 +152,12 @@ void register_router(py::module_& m) {
             py::arg("shape"), py::arg("dx"), py::arg("dy"),
             "Translate a shape by (``dx``, ``dy``). Same rerouting "
             "semantics as the polygon-form overload.")
+        .def("delete_connector", &Avoid::Router::deleteConnector,
+            py::arg("connector"),
+            "Remove and free ``connector``. Unlike "
+            ":py:meth:`delete_shape`, this deletes the underlying "
+            "C++ object immediately; the Python ConnRef wrapper is "
+            "invalid from this point and must not be touched.")
         .def("output_diagram",
             [](Avoid::Router& r, const std::string& name) {
                 r.outputDiagram(name);
