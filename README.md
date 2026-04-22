@@ -14,10 +14,13 @@ it to Python via [pybind11](https://pybind11.readthedocs.io/).
 
 Pre-alpha. The core routing API — `Router`, `ShapeRef`, `ConnRef`,
 `ConnEnd`, geometry primitives, and the routing-parameter/option
-enums — is wrapped and exercised by unit tests. Advanced features
-(connection pins, junctions, clusters, hyperedges, checkpoints, and
-routing-progress callbacks) are not yet wrapped; see `CLAUDE.md` §5
-phase 4 for that plan.
+enums — is wrapped and exercised by unit tests, plus 32 upstream
+regression tests translated from
+`vendor/adaptagrams/cola/libavoid/tests/`. See
+[`docs/api-coverage.md`](docs/api-coverage.md) for the per-test
+status. Advanced features (connection pins, junctions, clusters,
+hyperedges, checkpoints, and routing-progress callbacks) are not yet
+wrapped; see `CLAUDE.md` §5 phase 4 for that plan.
 
 ## Install
 
@@ -62,6 +65,10 @@ applies directly, with `camelCase` methods rewritten to `snake_case`.
 
 Check the `tests/` directory for worked examples of routing
 parameters, shape movement, and transaction-based batching.
+`tests/upstream/` mirrors the upstream libavoid regression tests
+under `vendor/adaptagrams/cola/libavoid/tests/`; re-run
+`python scripts/translate_upstream.py` after bumping the submodule
+to regenerate them from the new upstream sources.
 
 ## License
 

@@ -135,6 +135,23 @@ void register_connector(py::module_& m) {
             "Switch this connector between poly-line and orthogonal "
             "routing. The router must have been constructed with the "
             "corresponding :class:`RouterFlag`.")
+        .def("set_fixed_route", &Avoid::ConnRef::setFixedRoute,
+            py::arg("route"),
+            "Pin this connector's route to the supplied :class:`PolyLine`. "
+            "Until :py:meth:`clear_fixed_route` is called the router will "
+            "not re-route this connector; other connectors still avoid it. "
+            "Used by the `penaltyRerouting01` upstream test to study "
+            "crossings among fixed paths.")
+        .def("set_fixed_existing_route", &Avoid::ConnRef::setFixedExistingRoute,
+            "Pin this connector to its currently-computed route. "
+            "Equivalent to :py:meth:`set_fixed_route` called with the "
+            "connector's present :py:meth:`display_route`.")
+        .def("has_fixed_route", &Avoid::ConnRef::hasFixedRoute,
+            "``True`` if a fixed route is currently pinned on this "
+            "connector.")
+        .def("clear_fixed_route", &Avoid::ConnRef::clearFixedRoute,
+            "Remove any fixed route; the router will re-route this "
+            "connector on the next :py:meth:`Router.process_transaction`.")
         .def("endpoint_conn_ends",
             [](const Avoid::ConnRef& c) {
                 auto ends = const_cast<Avoid::ConnRef&>(c).endpointConnEnds();

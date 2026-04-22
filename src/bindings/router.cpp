@@ -120,6 +120,32 @@ void register_router(py::module_& m) {
             "Return ``True`` if any orthogonal connector in the current "
             "layout fails internal validity checks. Used by a handful of "
             "upstream tests as their sole pass/fail signal.")
+        .def("exists_orthogonal_segment_overlap",
+            &Avoid::Router::existsOrthogonalSegmentOverlap,
+            py::arg("at_ends") = false,
+            "Return ``True`` if any two orthogonal connector segments "
+            "overlap. Upstream test helper; pass ``at_ends=True`` to only "
+            "flag overlaps at endpoints.")
+        .def("exists_orthogonal_fixed_segment_overlap",
+            &Avoid::Router::existsOrthogonalFixedSegmentOverlap,
+            py::arg("at_ends") = false,
+            "Return ``True`` if any pair of fixed orthogonal connector "
+            "segments overlap. Used by the `inlineoverlap` family of "
+            "upstream regression tests as their pass/fail signal.")
+        .def("exists_orthogonal_touching_paths",
+            &Avoid::Router::existsOrthogonalTouchingPaths,
+            "Return ``True`` if any two orthogonal connector paths "
+            "touch along a common segment. Used by the `inlineoverlap01` "
+            "and `restrictedNudging` regression tests.")
+        .def("exists_crossings",
+            &Avoid::Router::existsCrossings,
+            py::arg("optimised_for_connector_type") = false,
+            "Return the number of times connectors cross one another in "
+            "the current layout. When ``optimised_for_connector_type`` is "
+            "true the count is computed by the faster path used for "
+            "orthogonal-only routing. Used by the `orthordering`, "
+            "`penaltyRerouting01`, and `finalSegmentNudging1` regression "
+            "tests.")
         .def("delete_shape", &Avoid::Router::deleteShape, py::arg("shape"),
             "Queue the removal of ``shape`` from the router. When the "
             "next :py:meth:`process_transaction` runs, the shape's "
