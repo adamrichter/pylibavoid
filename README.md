@@ -10,36 +10,80 @@ authors. Upstream libavoid lives in the
 `cola/libavoid/`; this package vendors it as a git submodule and exposes
 it to Python via [pybind11](https://pybind11.readthedocs.io/).
 
+> **Not ready for use.** libavoid-py is in active development. The
+> public API may change without notice, there are no published
+> releases on PyPI, and several libavoid features are not wrapped
+> yet (see [Status](#status) below). If you build from source, pin
+> a specific git commit — `main` is a moving target while the
+> roadmap progresses.
+
 ## Status
 
-Early. Phase 1 of the roadmap — a wheel that installs, imports, and
-exposes `version()`. See `CLAUDE.md` for the full phased plan. The
-routing API (`Router`, `ShapeRef`, `ConnRef`, geometry types) lands in
-phase 2.
+Pre-alpha. The core routing API — `Router`, `ShapeRef`, `ConnRef`,
+`ConnEnd`, geometry primitives, and the routing-parameter/option
+enums — is wrapped and exercised by unit tests, plus 32 upstream
+regression tests translated from
+`vendor/adaptagrams/cola/libavoid/tests/`. See
+[`docs/api-coverage.md`](docs/api-coverage.md) for the per-test
+status. Advanced features (connection pins, junctions, clusters,
+hyperedges, checkpoints, and routing-progress callbacks) are not yet
+wrapped; see `CLAUDE.md` §5 phase 4 for that plan.
 
 ## Install
 
+Not yet published to PyPI — `pip install libavoid-py` will not
+work today. To try the current state of the bindings, build from
+source:
+
 ```
-pip install libavoid-py
+git clone --recursive https://github.com/adamrichter/pylibavoid.git
+cd pylibavoid
+pip install .
 ```
 
-No runtime dependencies beyond Python. libavoid is statically linked
-into the extension module.
+Requires a C++17 compiler and CMake. No runtime dependencies
+beyond Python; libavoid is statically linked into the extension
+module.
 
-Supported platforms: Linux x86_64 (manylinux_2_28+) and Windows AMD64,
-on CPython 3.11, 3.12, and 3.13.
+The build targets Linux x86_64 (manylinux_2_28+) and Windows
+AMD64 on CPython 3.11, 3.12, and 3.13. CI exercises both
+platforms; other platforms are not supported in this iteration.
 
 ## Quickstart
 
-```python
-import libavoid_py
+Route an orthogonal connector between two rectangular shapes:
 
-# Phase 1: only version() is exposed. It returns the libavoid
-# commit hash that this wheel was built against.
-print(libavoid_py.version())
+```python
+import libavoid_py as la
+
+router = la.Router(la.RouterFlag.OrthogonalRouting)
+
+# Two rectangles sitting side-by-side with a gap between them.
+a = la.ShapeRef(router, la.Rectangle(la.Point(0, 0), la.Point(40, 20)))
+b = la.ShapeRef(router, la.Rectangle(la.Point(100, 0), la.Point(140, 20)))
+
+# Draw a connector from the right edge of A to the left edge of B.
+src = la.ConnEnd(la.Point(40, 10))
+dst = la.ConnEnd(la.Point(100, 10))
+conn = la.ConnRef(router, src, dst)
+
+router.process_transaction()  # compute routes
+
+route = conn.display_route()   # PolyLine = list of Points
+for pt in route:
+    print(pt)
 ```
 
-Full routing examples will land with phase 2.
+Every identifier here mirrors libavoid's C++ name: the upstream
+documentation at <https://www.adaptagrams.org/documentation/libavoid.html>
+applies directly, with `camelCase` methods rewritten to `snake_case`.
+
+Check the `tests/` directory for worked examples of routing
+parameters, shape movement, and transaction-based batching.
+`tests/upstream/` mirrors the upstream libavoid regression tests
+under `vendor/adaptagrams/cola/libavoid/tests/`; re-run
+`python scripts/translate_upstream.py` after bumping the submodule
+to regenerate them from the new upstream sources.
 
 ## License
 

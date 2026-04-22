@@ -1,7 +1,11 @@
 #include "bindings.h"
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
+#include <list>
+
+#include "libavoid/connector.h"
 #include "libavoid/router.h"
 #include "libavoid/shape.h"
 
@@ -68,7 +72,21 @@ void register_shape(py::module_& m) {
             "Replace the shape's polygon boundary. The Router must "
             "reprocess affected connectors, either immediately or on "
             "the next :py:meth:`Router.process_transaction` depending "
-            "on the transaction setting.");
+            "on the transaction setting.")
+        .def("attached_connectors",
+            [](const Avoid::ShapeRef& s) {
+                // Convert the ConnRefList (std::list<ConnRef*>) to a
+                // std::vector, which pybind11/stl.h converts to a
+                // Python list. The returned wrappers reference router-
+                // owned connectors; pybind11 registers them under the
+                // nodelete holder just like newly-constructed ones.
+                auto conns = s.attachedConnectors();
+                return std::vector<Avoid::ConnRef*>(conns.begin(), conns.end());
+            },
+            py::return_value_policy::reference_internal,
+            "List the :class:`ConnRef` instances whose endpoints "
+            "attach to this shape. Only populated after a connector "
+            "with a ConnEnd on this shape has been processed.");
 }
 
 }  // namespace pylibavoid

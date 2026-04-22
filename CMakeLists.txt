@@ -99,6 +99,7 @@ pybind11_add_module(_core MODULE
     src/bindings/geometry.cpp
     src/bindings/router.cpp
     src/bindings/shape.cpp
+    src/bindings/connector.cpp
 )
 
 target_include_directories(_core PRIVATE src/bindings)
