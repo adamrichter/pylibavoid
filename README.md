@@ -10,6 +10,13 @@ authors. Upstream libavoid lives in the
 `cola/libavoid/`; this package vendors it as a git submodule and exposes
 it to Python via [pybind11](https://pybind11.readthedocs.io/).
 
+> **Not ready for use.** libavoid-py is in active development. The
+> public API may change without notice, there are no published
+> releases on PyPI, and several libavoid features are not wrapped
+> yet (see [Status](#status) below). If you build from source, pin
+> a specific git commit — `main` is a moving target while the
+> roadmap progresses.
+
 ## Status
 
 Pre-alpha. The core routing API — `Router`, `ShapeRef`, `ConnRef`,
@@ -24,15 +31,23 @@ wrapped; see `CLAUDE.md` §5 phase 4 for that plan.
 
 ## Install
 
+Not yet published to PyPI — `pip install libavoid-py` will not
+work today. To try the current state of the bindings, build from
+source:
+
 ```
-pip install libavoid-py
+git clone --recursive https://github.com/adamrichter/pylibavoid.git
+cd pylibavoid
+pip install .
 ```
 
-No runtime dependencies beyond Python. libavoid is statically linked
-into the extension module.
+Requires a C++17 compiler and CMake. No runtime dependencies
+beyond Python; libavoid is statically linked into the extension
+module.
 
-Supported platforms: Linux x86_64 (manylinux_2_28+) and Windows AMD64,
-on CPython 3.11, 3.12, and 3.13.
+The build targets Linux x86_64 (manylinux_2_28+) and Windows
+AMD64 on CPython 3.11, 3.12, and 3.13. CI exercises both
+platforms; other platforms are not supported in this iteration.
 
 ## Quickstart
 
