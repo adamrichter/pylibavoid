@@ -1,0 +1,4 @@
+# Marimo writes per-run session state under __marimo__/ when a
+# notebook is exported or edited. Local cache only — keep it out
+# of the demo branch.
+__marimo__/
