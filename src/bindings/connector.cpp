@@ -7,6 +7,7 @@
 #include "libavoid/connend.h"
 #include "libavoid/junction.h"
 #include "libavoid/router.h"
+#include "libavoid/shape.h"
 
 namespace py = pybind11;
 
@@ -46,8 +47,10 @@ void register_connector(py::module_& m) {
         .value("Point", Avoid::ConnEndPoint,
             "A free-floating point.")
         .value("ShapePin", Avoid::ConnEndShapePin,
-            "Attached to a shape via a connection pin (phase-4 "
-            "feature; not constructible from Python yet).")
+            "Attached to a shape via a :class:`ShapeConnectionPin`. "
+            "Construct with ``ConnEnd(shape, class_id)``; recover the "
+            "shape with :py:meth:`ConnEnd.shape` and the pin's class "
+            "ID with :py:meth:`ConnEnd.pin_class_id`.")
         .value("Junction", Avoid::ConnEndJunction,
             "Attached to a :class:`JunctionRef`. Construct with "
             "``ConnEnd(junction)``; recover the junction with "
@@ -56,9 +59,8 @@ void register_connector(py::module_& m) {
             "The default-constructed, not-yet-specified state.");
 
     py::class_<Avoid::ConnEnd>(m, "ConnEnd",
-        "An endpoint for a :class:`ConnRef`. Point-based and "
-        "junction-based endpoints are usable today; shape-pin "
-        "attachment is a phase-4 feature still to come.")
+        "An endpoint for a :class:`ConnRef`. Point, junction, and "
+        "shape-pin endpoints are all constructible.")
         .def(py::init<>(),
             "Empty ConnEnd. Its :py:meth:`type` is "
             ":py:attr:`ConnEndType.Empty`; use one of the other "
@@ -79,6 +81,15 @@ void register_connector(py::module_& m) {
             "fixed waypoint. The ConnEnd keeps a reference to the "
             "junction; the junction must outlive any ConnRef built "
             "from this ConnEnd.")
+        .def(py::init<Avoid::ShapeRef*, unsigned int>(),
+            py::arg("shape"), py::arg("class_id"),
+            py::keep_alive<1, 2>(),
+            "Endpoint attached to a pin on ``shape``. The router "
+            "picks a :class:`ShapeConnectionPin` whose class ID "
+            "matches; if no such pin exists you will get a libavoid "
+            "warning and a straight-line route. To anchor at the "
+            "shape centre, register a single pin with class ID "
+            ":data:`CONNECTIONPIN_CENTRE` and pass that ID here.")
         .def("type", &Avoid::ConnEnd::type,
             "What kind of endpoint this is (:class:`ConnEndType`).")
         .def("position", &Avoid::ConnEnd::position,
@@ -95,7 +106,16 @@ void register_connector(py::module_& m) {
             "Return the :class:`JunctionRef` this endpoint attaches "
             "to, or ``None`` if it does not attach to a junction "
             "(check :py:meth:`type` ``== ConnEndType.Junction`` "
-            "first).");
+            "first).")
+        .def("shape", &Avoid::ConnEnd::shape,
+            py::return_value_policy::reference_internal,
+            "Return the :class:`ShapeRef` this endpoint attaches to "
+            "via a connection pin, or ``None`` if it does not (check "
+            ":py:meth:`type` ``== ConnEndType.ShapePin`` first).")
+        .def("pin_class_id", &Avoid::ConnEnd::pinClassId,
+            "Return the connection-pin class ID this endpoint targets "
+            "(only meaningful when "
+            ":py:meth:`type` ``== ConnEndType.ShapePin``).");
 
     // Lifetime contract is the same as ShapeRef: Router owns every
     // ConnRef, so we use py::nodelete and keep the Python Router

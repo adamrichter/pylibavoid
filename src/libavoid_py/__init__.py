@@ -8,6 +8,15 @@ in the PRs that follow.
 """
 
 from ._core import (
+    ATTACH_POS_BOTTOM,
+    ATTACH_POS_CENTRE,
+    ATTACH_POS_LEFT,
+    ATTACH_POS_MAX_OFFSET,
+    ATTACH_POS_MIN_OFFSET,
+    ATTACH_POS_RIGHT,
+    ATTACH_POS_TOP,
+    CONNECTIONPIN_CENTRE,
+    CONNECTIONPIN_UNSET,
     XDIM,
     YDIM,
     Box,
@@ -25,6 +34,7 @@ from ._core import (
     RouterFlag,
     RoutingOption,
     RoutingParameter,
+    ShapeConnectionPin,
     ShapeRef,
     Vector,
     chooseSensibleParamValue,
@@ -33,6 +43,15 @@ from ._core import (
 )
 
 __all__ = [
+    "ATTACH_POS_BOTTOM",
+    "ATTACH_POS_CENTRE",
+    "ATTACH_POS_LEFT",
+    "ATTACH_POS_MAX_OFFSET",
+    "ATTACH_POS_MIN_OFFSET",
+    "ATTACH_POS_RIGHT",
+    "ATTACH_POS_TOP",
+    "CONNECTIONPIN_CENTRE",
+    "CONNECTIONPIN_UNSET",
     "XDIM",
     "YDIM",
     "Box",
@@ -50,6 +69,7 @@ __all__ = [
     "RouterFlag",
     "RoutingOption",
     "RoutingParameter",
+    "ShapeConnectionPin",
     "ShapeRef",
     "Vector",
     "chooseSensibleParamValue",

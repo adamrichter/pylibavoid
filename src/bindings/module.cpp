@@ -34,4 +34,5 @@ PYBIND11_MODULE(_core, m) {
     pylibavoid::register_router(m);
     pylibavoid::register_shape(m);
     pylibavoid::register_junction(m);
+    pylibavoid::register_connection_pin(m);
 }
