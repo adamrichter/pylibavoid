@@ -31,12 +31,16 @@ Companion to `docs/research/phase0.md` (inventory) and
 | `connector.h` | `ConnRef` | `libavoid_py.ConnRef` | phase 2 | |
 | `connector.h` | `ConnRef::setFixedRoute` + related | `ConnRef.set_fixed_route`, `set_fixed_existing_route`, `has_fixed_route`, `clear_fixed_route` | phase 3 | Added for `penaltyRerouting01`. |
 | `connend.h` | `ConnDirFlag` | `libavoid_py.ConnDirFlag` | phase 2 | |
-| `connend.h` | `ConnEnd` | `libavoid_py.ConnEnd` | phase 2 | Point and point-with-direction-flags constructors only. |
+| `connend.h` | `ConnEnd` | `libavoid_py.ConnEnd` | phase 2 | Point, point-with-direction-flags, and junction constructors. Pin attachment still pending. |
+| `connend.h` | `ConnEnd::junction` | `ConnEnd.junction` | phase 4 | Returns the attached :class:`JunctionRef` or ``None``. |
 | `connend.h` | `ConnEndType` | `libavoid_py.ConnEndType` | phase 2 | |
+| `junction.h` | `JunctionRef` | `libavoid_py.JunctionRef` | phase 4 | Property-style ``position``, ``position_fixed``, ``recommended_position``; ``remove_and_merge_connectors`` (renamed from upstream's ``removeJunctionAndMergeConnectors``); see ADR 0003. |
+| `router.h` | `Router::deleteJunction` | `Router.delete_junction` | phase 4 | |
+| `router.h` | `Router::moveJunction` | `Router.move_junction` | phase 4 | Both Point and (dx, dy) overloads. |
 
-Phase-4 areas (pins, junctions, clusters, hyperedges, checkpoints,
-callbacks) are not wrapped yet. Each gets its own phase and decision
-record.
+Remaining phase-4 areas (connection pins, clusters, hyperedges,
+checkpoints, callbacks) are not wrapped yet. Each gets its own
+phase and decision record.
 
 ## Upstream test translation status
 
@@ -59,8 +63,8 @@ Status legend:
 
 | upstream test | status | signal / blocker |
 |---------------|--------|------------------|
-| 2junctions | skipped | needs junctions |
-| buildOrthogonalChannelInfo1 | skipped | needs junctions |
+| 2junctions | skipped | needs connection pins |
+| buildOrthogonalChannelInfo1 | skipped | needs connection pins |
 | checkpointNudging1 | skipped | needs checkpoints |
 | checkpointNudging2 | skipped | needs checkpoints |
 | checkpointNudging3 | skipped | needs checkpoints |
@@ -83,7 +87,7 @@ Status legend:
 | hola01 | skipped | needs connection pins |
 | hyperedge01 | skipped | needs hyperedges |
 | hyperedge02 | skipped | needs hyperedges |
-| hyperedgeLoop1 | skipped | needs junctions |
+| hyperedgeLoop1 | skipped | needs connection pins |
 | hyperedgeRerouting01 | skipped | needs hyperedges |
 | improveHyperedge01 | skipped | needs hyperedges |
 | improveHyperedge02 | skipped | needs hyperedges |
@@ -106,9 +110,9 @@ Status legend:
 | inlineOverlap11 | skipped | needs hyperedges |
 | inlineShapes | skipped | needs connection pins |
 | junction01 | skipped | needs connection pins |
-| junction02 | skipped | needs junctions |
-| junction03 | skipped | needs junctions |
-| junction04 | skipped | needs junctions |
+| junction02 | passing | crash-only |
+| junction03 | passing | crash-only |
+| junction04 | skipped | needs connection pins |
 | latesetup | skipped | needs callbacks |
 | lineSegWrapperCrash1 | passing | crash-only |
 | lineSegWrapperCrash2 | passing | crash-only |
@@ -119,7 +123,7 @@ Status legend:
 | lineSegWrapperCrash7 | passing | crash-only |
 | lineSegWrapperCrash8 | passing | crash-only |
 | multiconnact | skipped | needs callbacks |
-| node1 | skipped | needs junctions |
+| node1 | skipped | needs connection pins |
 | nudgeCrossing01 | skipped | needs checkpoints |
 | nudgeintobug | passing | `not (overlap or touching)` |
 | nudgeold | passing | crash-only |
@@ -132,10 +136,10 @@ Status legend:
 | penaltyRerouting01 | passing | `exists_crossings() == 0` |
 | performance01 | passing | crash-only |
 | reallyslowrouting | disabled upstream | — |
-| removeJunctions01 | skipped | needs junctions |
+| removeJunctions01 | skipped | needs connection pins |
 | restrictedNudging | passing | `not exists_orthogonal_touching_paths()` |
-| slowrouting | skipped | needs junctions |
-| tjunct | skipped | needs junctions |
+| slowrouting | passing | crash-only |
+| tjunct | passing | crash-only |
 | treeRootCrash01 | skipped | needs hyperedges |
 | treeRootCrash02 | skipped | needs hyperedges |
 | unsatisfiableRangeAssertion | disabled upstream | — |
@@ -145,15 +149,22 @@ Status legend:
 
 ## Summary
 
-- **passing**: 32 / 83
-- **skipped (phase-4 feature gap)**: 48 / 83 — grouped:
-  - needs connection pins: 11
-  - needs junctions: 11
+- **passing**: 36 / 83
+- **skipped (phase-4 feature gap)**: 44 / 83 — grouped:
+  - needs connection pins: 17
   - needs hyperedges: 13
-  - needs checkpoints: 9
+  - needs checkpoints: 10
   - needs callbacks: 4
 - **disabled upstream**: 3 / 83
 
-When a phase-4 feature lands, its skip stubs become the natural
-translation targets. Re-run `python scripts/translate_upstream.py`
-to regenerate tests against the new wrapper surface.
+Phase 4 progresses one feature at a time; each feature lands its
+own ADR under `docs/decisions/` and unblocks whichever skip stubs
+were waiting on it. Re-run `python scripts/translate_upstream.py`
+after a feature lands to regenerate tests against the new wrapper
+surface.
+
+Junctions (ADR 0003) landed in this phase. Six tests originally
+tagged "needs junctions" turned out to also need connection pins
+(2junctions, buildOrthogonalChannelInfo1, hyperedgeLoop1,
+junction04, node1, removeJunctions01) and are now tagged
+accordingly; they will unblock when pins land.

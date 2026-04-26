@@ -20,12 +20,12 @@ it to Python via [pybind11](https://pybind11.readthedocs.io/).
 ## Status
 
 Pre-alpha. The core routing API — `Router`, `ShapeRef`, `ConnRef`,
-`ConnEnd`, geometry primitives, and the routing-parameter/option
-enums — is wrapped and exercised by unit tests, plus 32 upstream
-regression tests translated from
+`ConnEnd`, `JunctionRef`, geometry primitives, and the
+routing-parameter/option enums — is wrapped and exercised by unit
+tests, plus 36 upstream regression tests translated from
 `vendor/adaptagrams/cola/libavoid/tests/`. See
 [`docs/api-coverage.md`](docs/api-coverage.md) for the per-test
-status. Advanced features (connection pins, junctions, clusters,
+status. The remaining advanced features (connection pins, clusters,
 hyperedges, checkpoints, and routing-progress callbacks) are not yet
 wrapped; see `CLAUDE.md` §5 phase 4 for that plan.
 

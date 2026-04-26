@@ -53,6 +53,8 @@ TRANSLATABLE_TESTS: tuple[str, ...] = (
     "inlineoverlap07",
     "inlineoverlap08",
     "inlineOverlap09",
+    "junction02",
+    "junction03",
     "lineSegWrapperCrash1",
     "lineSegWrapperCrash2",
     "lineSegWrapperCrash3",
@@ -70,6 +72,8 @@ TRANSLATABLE_TESTS: tuple[str, ...] = (
     "penaltyRerouting01",
     "performance01",
     "restrictedNudging",
+    "slowrouting",
+    "tjunct",
     "vertlineassertion",
 )
 
@@ -77,8 +81,8 @@ TRANSLATABLE_TESTS: tuple[str, ...] = (
 # the feature gap surfaced as the pytest.skip reason. Sourced from
 # docs/research/phase0.md's per-test inventory.
 TRANSLATABLE_PARTIAL: dict[str, str] = {
-    "2junctions": "junctions",
-    "buildOrthogonalChannelInfo1": "junctions",
+    "2junctions": "connection pins",
+    "buildOrthogonalChannelInfo1": "connection pins",
     "checkpointNudging1": "checkpoints",
     "checkpointNudging2": "checkpoints",
     "checkpointNudging3": "checkpoints",
@@ -97,7 +101,7 @@ TRANSLATABLE_PARTIAL: dict[str, str] = {
     "hola01": "connection pins",
     "hyperedge01": "hyperedges",
     "hyperedge02": "hyperedges",
-    "hyperedgeLoop1": "junctions",
+    "hyperedgeLoop1": "connection pins",
     "hyperedgeRerouting01": "hyperedges",
     "improveHyperedge01": "hyperedges",
     "improveHyperedge02": "hyperedges",
@@ -109,18 +113,14 @@ TRANSLATABLE_PARTIAL: dict[str, str] = {
     "inlineOverlap11": "hyperedges",
     "inlineShapes": "connection pins",
     "junction01": "connection pins",
-    "junction02": "junctions",
-    "junction03": "junctions",
-    "junction04": "junctions",
+    "junction04": "connection pins",
     "latesetup": "callbacks",
     "multiconnact": "callbacks",
-    "node1": "junctions",
+    "node1": "connection pins",
     "nudgeCrossing01": "checkpoints",
     "nudgingSkipsCheckpoint01": "checkpoints",
     "nudgingSkipsCheckpoint02": "checkpoints",
-    "removeJunctions01": "junctions",
-    "slowrouting": "junctions",
-    "tjunct": "junctions",
+    "removeJunctions01": "connection pins",
     "treeRootCrash01": "hyperedges",
     "treeRootCrash02": "hyperedges",
     "validPaths01": "connection pins",
@@ -501,6 +501,21 @@ def classify(ir: TestIR, stmt: str) -> None:
             ir.emit(f"{name} = ConnEnd(Point({pt}))")
         return
 
+    # ConnEnd name(junctionVar);   -- single-arg ctor whose argument is
+    # a bare identifier (a JunctionRef variable). Must come AFTER the
+    # Point-constructor pattern above, otherwise that pattern would
+    # leave nothing to disambiguate.
+    m = re.match(
+        r"(?:Avoid::)?ConnEnd\s+(?P<name>\w+)\s*\(\s*(?P<jname>\w+)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        jname = _pyname(m.group("jname"))
+        ir.connend_decls.add(name)
+        ir.emit(f"{name} = ConnEnd({jname})")
+        return
+
     # ConnRef *name = nullptr;  -- a forward declaration; the real
     # assignment comes later. Emit None so the Python scope sees the
     # binding as well.
@@ -621,6 +636,62 @@ def classify(ir: TestIR, stmt: str) -> None:
             ir.emit(f"{name} = ConnEnd(Point({pt}), {flags})")
         else:
             ir.emit(f"{name} = ConnEnd(Point({pt}))")
+        return
+
+    # dstPt = Avoid::ConnEnd(junctionVar);  (junction-form reassignment)
+    m = re.match(
+        r"(?P<name>\w+)\s*=\s*(?:Avoid::)?ConnEnd\s*\(\s*(?P<jname>\w+)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        jname = _pyname(m.group("jname"))
+        ir.emit(f"{name} = ConnEnd({jname})")
+        return
+
+    # JunctionRef *jr = new JunctionRef(router, Point(x, y) [, id]);
+    m = re.match(
+        r"(?:Avoid::)?JunctionRef\s*\*\s*(?P<name>\w+)\s*=\s*new\s+(?:Avoid::)?JunctionRef\s*\(\s*router\s*,\s*(?:Avoid::)?Point\s*\((?P<pt>[^)]*)\)\s*(?:,\s*(?P<id>[^)]+))?\s*\)",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        pt = translate_expression(m.group("pt"))
+        id_ = m.group("id")
+        if id_ is not None:
+            ir.emit(f"{name} = JunctionRef(router, Point({pt}), {id_.strip()})")
+        else:
+            ir.emit(f"{name} = JunctionRef(router, Point({pt}))")
+        return
+
+    # router->moveJunction(jr, Point(x, y));
+    m = re.match(
+        r"router->moveJunction\s*\(\s*(?P<name>\w+)\s*,\s*(?:Avoid::)?Point\s*\((?P<pt>[^)]*)\)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        pt = translate_expression(m.group("pt"))
+        ir.emit(f"router.move_junction({name}, Point({pt}))")
+        return
+
+    # router->moveJunction(jr, dx, dy);
+    m = re.match(
+        r"router->moveJunction\s*\(\s*(?P<name>\w+)\s*,\s*(?P<dx>[^,]+)\s*,\s*(?P<dy>[^)]+)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        dx = translate_expression(m.group("dx").strip())
+        dy = translate_expression(m.group("dy").strip())
+        ir.emit(f"router.move_junction({name}, {dx}, {dy})")
+        return
+
+    # router->deleteJunction(jr);
+    m = re.match(r"router->deleteJunction\s*\(\s*(?P<name>\w+)\s*\)$", stmt)
+    if m:
+        name = _pyname(m.group("name"))
+        ir.emit(f"router.delete_junction({name})")
         return
 
     # router->processTransaction();
@@ -792,6 +863,7 @@ from libavoid_py import (
     ConnEnd,
     ConnRef,
     ConnType,
+    JunctionRef,
     Point,
     Polygon,
     Rectangle,

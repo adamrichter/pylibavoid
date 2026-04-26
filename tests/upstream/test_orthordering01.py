@@ -12,6 +12,7 @@ from libavoid_py import (
     ConnEnd,
     ConnRef,
     ConnType,
+    JunctionRef,
     Point,
     Polygon,
     Rectangle,
