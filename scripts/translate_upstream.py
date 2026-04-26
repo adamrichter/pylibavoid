@@ -39,9 +39,13 @@ OUTPUT_DIR = REPO_ROOT / "tests" / "upstream"
 # public API. Blocked tests live in TRANSLATABLE_PARTIAL below; they
 # become skipped stubs.
 TRANSLATABLE_TESTS: tuple[str, ...] = (
+    "connectionpin01",
+    "connectionpin03",
     "finalSegmentNudging1",
     "finalSegmentNudging2",
+    "forwardFlowingConnectors01",
     "freeFloatingDirection01",
+    "hola01",
     "infinity",
     "inline",
     "inlineoverlap01",
@@ -53,6 +57,9 @@ TRANSLATABLE_TESTS: tuple[str, ...] = (
     "inlineoverlap07",
     "inlineoverlap08",
     "inlineOverlap09",
+    "inlineOverlap10",
+    "inlineShapes",
+    "junction01",
     "junction02",
     "junction03",
     "lineSegWrapperCrash1",
@@ -63,6 +70,7 @@ TRANSLATABLE_TESTS: tuple[str, ...] = (
     "lineSegWrapperCrash6",
     "lineSegWrapperCrash7",
     "lineSegWrapperCrash8",
+    "node1",
     "nudgeintobug",
     "nudgeold",
     "orderassertion",
@@ -74,6 +82,8 @@ TRANSLATABLE_TESTS: tuple[str, ...] = (
     "restrictedNudging",
     "slowrouting",
     "tjunct",
+    "validPaths01",
+    "validPaths02",
     "vertlineassertion",
 )
 
@@ -81,8 +91,35 @@ TRANSLATABLE_TESTS: tuple[str, ...] = (
 # the feature gap surfaced as the pytest.skip reason. Sourced from
 # docs/research/phase0.md's per-test inventory.
 TRANSLATABLE_PARTIAL: dict[str, str] = {
-    "2junctions": "connection pins",
-    "buildOrthogonalChannelInfo1": "connection pins",
+    # Three tests use a saved-state ``int test()`` helper that main()
+    # delegates to, plus accessors libavoid auto-emits for state
+    # capture (setPositionFixed, makePathInvalid, single-arg
+    # setRoutingPenalty, etc.). Translating them needs translator
+    # work on top of pin support, so we leave them stubbed under a
+    # specific reason rather than mark them "needs pins" — pins are
+    # actually wrapped now.
+    "2junctions": "translator support for state-capture test() harnesses",
+    "buildOrthogonalChannelInfo1": "translator support for state-capture test() harnesses",
+    "hyperedgeLoop1": "translator support for state-capture test() harnesses",
+    # connectionpin02 exercises ShapeRef.transformConnectionPinPositions
+    # to rotate/flip pin layouts. That accessor is outside the
+    # connection-pins PR scope (ADR 0004) and would be a one-line
+    # follow-up to wrap.
+    "connectionpin02": "ShapeRef.transformConnectionPinPositions accessor",
+    # connendmove relies on libavoid's implicit Point→ConnEnd
+    # conversion when passing a bare Point to ConnRef ctor /
+    # setSourceEndpoint / setDestEndpoint. Python has no implicit
+    # conversion; the translator would need to wrap the args in
+    # ``ConnEnd(...)``. The binding itself is fine.
+    "connendmove": "translator support for implicit Point→ConnEnd at call sites",
+    # junction04 calls ConnRef.splitAtSegment, which inserts a
+    # junction mid-route. Outside the connection-pins PR scope.
+    "junction04": "ConnRef.splitAtSegment accessor",
+    # removeJunctions01's assertion checks the merged connector's
+    # endpoint connectivity through .endpointConnEnds().first.shape();
+    # the test runs but its specific assert needs extra translator
+    # support. Stub kept; binding is complete.
+    "removeJunctions01": "translator support for endpoint connectivity assertion",
     "checkpointNudging1": "checkpoints",
     "checkpointNudging2": "checkpoints",
     "checkpointNudging3": "checkpoints",
@@ -90,18 +127,11 @@ TRANSLATABLE_PARTIAL: dict[str, str] = {
     "checkpoints02": "checkpoints",
     "checkpoints03": "checkpoints",
     "complex": "callbacks",
-    "connectionpin01": "connection pins",
-    "connectionpin02": "connection pins",
-    "connectionpin03": "connection pins",
-    "connendmove": "connection pins",
     "endlessLoop01": "hyperedges",
     "example": "callbacks",
     "finalSegmentNudging3": "checkpoints",
-    "forwardFlowingConnectors01": "connection pins",
-    "hola01": "connection pins",
     "hyperedge01": "hyperedges",
     "hyperedge02": "hyperedges",
-    "hyperedgeLoop1": "connection pins",
     "hyperedgeRerouting01": "hyperedges",
     "improveHyperedge01": "hyperedges",
     "improveHyperedge02": "hyperedges",
@@ -109,22 +139,14 @@ TRANSLATABLE_PARTIAL: dict[str, str] = {
     "improveHyperedge04": "hyperedges",
     "improveHyperedge05": "hyperedges",
     "improveHyperedge06": "hyperedges",
-    "inlineOverlap10": "connection pins",
     "inlineOverlap11": "hyperedges",
-    "inlineShapes": "connection pins",
-    "junction01": "connection pins",
-    "junction04": "connection pins",
     "latesetup": "callbacks",
     "multiconnact": "callbacks",
-    "node1": "connection pins",
     "nudgeCrossing01": "checkpoints",
     "nudgingSkipsCheckpoint01": "checkpoints",
     "nudgingSkipsCheckpoint02": "checkpoints",
-    "removeJunctions01": "connection pins",
     "treeRootCrash01": "hyperedges",
     "treeRootCrash02": "hyperedges",
-    "validPaths01": "connection pins",
-    "validPaths02": "connection pins",
 }
 
 # Tests upstream disabled in Makefile.am; we mirror the decision.
@@ -283,6 +305,10 @@ def translate_expression(expr: str) -> str:
     expr = re.sub(r"\(\s*RoutingParameter\s*\)\s*(\d+)", _param_by_value, expr)
     expr = re.sub(r"\(\s*RoutingOption\s*\)\s*(\d+)", _option_by_value, expr)
     expr = re.sub(r"\(\s*ConnType\s*\)\s*(\d+)", _conntype_by_value, expr)
+    # ``(ConnDirFlags) N`` shows up in pin constructors (e.g.
+    # inlineShapes uses ``(ConnDirFlags) 0`` for the visDirs arg).
+    # The Python pin binding accepts a bare int, so strip the cast.
+    expr = re.sub(r"\(\s*ConnDirFlags\s*\)\s*(\d+)", r"\1", expr)
     # collapse multiple spaces
     expr = " ".join(expr.split())
     return expr
@@ -338,7 +364,14 @@ def _pyname(cname: str) -> str:
     Return ``snake_case`` where it reads more naturally for the reader
     (``srcPt`` → ``src_pt``) while preserving suffixes intact so that
     variables that share an origin keep the same suffix.
+
+    SCREAMING_SNAKE_CASE identifiers (``CENTRE``,
+    ``CONNECTIONPIN_CENTRE``) are conventional constants and are
+    returned unchanged — both their declarations and their
+    references should match each other.
     """
+    if cname == cname.upper() and cname.replace("_", "").isalnum():
+        return cname
     # Convert camelCase to snake_case.
     s = re.sub(r"(?<!^)(?=[A-Z])", "_", cname).lower()
     return s
@@ -371,6 +404,18 @@ def classify(ir: TestIR, stmt: str) -> None:
     if m:
         args = translate_expression(m.group("args"))
         ir.emit(f"router.set_routing_option({args})")
+        return
+
+    # Point name(x, y);   -- bare Point declaration. connendmove and
+    # similar tests use these as named coordinate vars.
+    m = re.match(
+        r"(?:Avoid::)?Point\s+(?P<name>\w+)\s*\(\s*(?P<pt>[^)]*)\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        pt = translate_expression(m.group("pt"))
+        ir.emit(f"{name} = Point({pt})")
         return
 
     # Polygon polyN(count);  / Polygon polyN;  (default-constructed)
@@ -461,7 +506,27 @@ def classify(ir: TestIR, stmt: str) -> None:
         ir.emit(f"{name} = Rectangle(Point({p}), {w}, {h})")
         return
 
-    # new ShapeRef(router, polyN, id);
+    # ShapeRef *shapeRef = new ShapeRef(router, polyN [, id]);
+    # Captured form — used by tests that go on to reference the
+    # shape variable (move it, attach pins, etc.).
+    m = re.match(
+        r"(?:Avoid::)?ShapeRef\s*\*\s*(?P<name>\w+)\s*=\s*"
+        r"new\s+(?:Avoid::)?ShapeRef\s*\(\s*router\s*,\s*(?P<poly>\w+)\s*"
+        r"(?:,\s*(?P<id>[^)]+))?\s*\)",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        poly = _pyname(m.group("poly"))
+        id_ = m.group("id")
+        ir.shape_decls.add(name)
+        if id_ is not None:
+            ir.emit(f"{name} = ShapeRef(router, {poly}, {id_.strip()})")
+        else:
+            ir.emit(f"{name} = ShapeRef(router, {poly})")
+        return
+
+    # new ShapeRef(router, polyN, id);   (value-discard form)
     m = re.match(
         r"new\s+(?:Avoid::)?ShapeRef\s*\(\s*router\s*,\s*(?P<poly>\w+)\s*(?:,\s*(?P<id>[^)]+))?\s*\)",
         stmt,
@@ -516,6 +581,21 @@ def classify(ir: TestIR, stmt: str) -> None:
         ir.emit(f"{name} = ConnEnd({jname})")
         return
 
+    # ConnEnd name(shapeVar, classId);   -- pin-attached endpoint.
+    # classId may be a literal int, a local const name, or a
+    # CONNECTIONPIN_* constant. translate_expression strips Avoid::.
+    m = re.match(
+        r"(?:Avoid::)?ConnEnd\s+(?P<name>\w+)\s*\(\s*(?P<sname>\w+)\s*,\s*(?P<cid>[^)]+)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        sname = _pyname(m.group("sname"))
+        cid = translate_expression(m.group("cid").strip())
+        ir.connend_decls.add(name)
+        ir.emit(f"{name} = ConnEnd({sname}, {cid})")
+        return
+
     # ConnRef *name = nullptr;  -- a forward declaration; the real
     # assignment comes later. Emit None so the Python scope sees the
     # binding as well.
@@ -528,9 +608,43 @@ def classify(ir: TestIR, stmt: str) -> None:
         ir.emit(f"{name} = None")
         return
 
-    # ConnRef *crN = new ConnRef(router, id);
+    # ConnRef *aliasName = otherConnRefVar;  (pointer alias)
     m = re.match(
-        r"(?:Avoid::)?ConnRef\s*\*\s*(?P<name>\w+)\s*=\s*new\s+(?:Avoid::)?ConnRef\s*\(\s*router\s*(?:,\s*(?P<id>[^)]+))?\s*\)",
+        r"(?:Avoid::)?ConnRef\s*\*\s*(?P<name>\w+)\s*=\s*(?P<src>\w+)$",
+        stmt,
+    )
+    if m and m.group("src") not in ("nullptr", "NULL"):
+        name = _pyname(m.group("name"))
+        src = _pyname(m.group("src"))
+        ir.connref_decls.add(name)
+        ir.emit(f"{name} = {src}")
+        return
+
+    # ConnRef *crN = new ConnRef(router, src, dst[, id]);  (assignment, 3-arg+)
+    m = re.match(
+        r"(?:Avoid::)?ConnRef\s*\*\s*(?P<name>\w+)\s*=\s*"
+        r"new\s+(?:Avoid::)?ConnRef\s*\(\s*router\s*,\s*"
+        r"(?P<src>\w+)\s*,\s*(?P<dst>\w+)\s*"
+        r"(?:,\s*(?P<id>[^)]+))?\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        src = _pyname(m.group("src"))
+        dst = _pyname(m.group("dst"))
+        id_ = m.group("id")
+        ir.connref_decls.add(name)
+        if id_ is not None:
+            ir.emit(f"{name} = ConnRef(router, {src}, {dst}, {id_.strip()})")
+        else:
+            ir.emit(f"{name} = ConnRef(router, {src}, {dst})")
+        return
+
+    # ConnRef *crN = new ConnRef(router[, id]);  (assignment, 0-arg or id-only)
+    m = re.match(
+        r"(?:Avoid::)?ConnRef\s*\*\s*(?P<name>\w+)\s*=\s*"
+        r"new\s+(?:Avoid::)?ConnRef\s*\(\s*router\s*"
+        r"(?:,\s*(?P<id>[^,)]+))?\s*\)$",
         stmt,
     )
     if m:
@@ -649,6 +763,18 @@ def classify(ir: TestIR, stmt: str) -> None:
         ir.emit(f"{name} = ConnEnd({jname})")
         return
 
+    # dstPt = Avoid::ConnEnd(shapeVar, classId);  (pin-form reassignment)
+    m = re.match(
+        r"(?P<name>\w+)\s*=\s*(?:Avoid::)?ConnEnd\s*\(\s*(?P<sname>\w+)\s*,\s*(?P<cid>[^)]+)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        sname = _pyname(m.group("sname"))
+        cid = translate_expression(m.group("cid").strip())
+        ir.emit(f"{name} = ConnEnd({sname}, {cid})")
+        return
+
     # JunctionRef *jr = new JunctionRef(router, Point(x, y) [, id]);
     m = re.match(
         r"(?:Avoid::)?JunctionRef\s*\*\s*(?P<name>\w+)\s*=\s*new\s+(?:Avoid::)?JunctionRef\s*\(\s*router\s*,\s*(?:Avoid::)?Point\s*\((?P<pt>[^)]*)\)\s*(?:,\s*(?P<id>[^)]+))?\s*\)",
@@ -694,9 +820,189 @@ def classify(ir: TestIR, stmt: str) -> None:
         ir.emit(f"router.delete_junction({name})")
         return
 
+    # ConnRef *merged = jr->removeJunctionAndMergeConnectors();
+    m = re.match(
+        r"(?:Avoid::)?ConnRef\s*\*\s*(?P<name>\w+)\s*=\s*(?P<jr>\w+)->removeJunctionAndMergeConnectors\s*\(\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        jr = _pyname(m.group("jr"))
+        ir.connref_decls.add(name)
+        ir.emit(f"{name} = {jr}.remove_and_merge_connectors()")
+        return
+
+    # const unsigned int CENTRE = 1;   -- local int constant. Upstream
+    # uses these as readable pin class IDs; SCREAMING_SNAKE names are
+    # left as-is by _pyname so references match.
+    m = re.match(
+        r"const\s+unsigned\s+int\s+(?P<name>\w+)\s*=\s*(?P<v>[^$]+)$", stmt
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        v = translate_expression(m.group("v").strip())
+        ir.emit(f"{name} = {v}")
+        ir.int_vars[name] = ""
+        return
+
+    # double buffer = 4;  /  int n = 7;   -- local numeric var.
+    # Excludes RHS containing ``->`` so the more specific
+    # ``int x = router->existsCrossings(...)`` pattern below stays
+    # in charge of its case.
+    m = re.match(
+        r"(?:const\s+)?(?:double|int|unsigned\s+int|float)\s+(?P<name>\w+)\s*=\s*(?P<v>[^$]+)$",
+        stmt,
+    )
+    if m and "->" not in m.group("v"):
+        name = _pyname(m.group("name"))
+        v = translate_expression(m.group("v").strip())
+        ir.emit(f"{name} = {v}")
+        ir.int_vars[name] = ""
+        return
+
+    # ShapeConnectionPin *pin = nullptr;   (forward declaration)
+    m = re.match(
+        r"(?:Avoid::)?ShapeConnectionPin\s*\*\s*(?P<name>\w+)\s*=\s*nullptr$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        ir.emit(f"{name} = None")
+        return
+
+    # ShapeConnectionPin *pin = new ShapeConnectionPin(shape, classId,
+    #     xOff, yOff, proportional, insideOff, visDirs);
+    m = re.match(
+        r"(?:Avoid::)?ShapeConnectionPin\s*\*\s*(?P<name>\w+)\s*=\s*"
+        r"new\s+(?:Avoid::)?ShapeConnectionPin\s*\(\s*"
+        r"(?P<shape>\w+)\s*,\s*(?P<cid>[^,]+),\s*"
+        r"(?P<xo>[^,]+),\s*(?P<yo>[^,]+),\s*"
+        r"(?P<prop>true|false)\s*,\s*"
+        r"(?P<inside>[^,]+),\s*(?P<vis>.+?)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        shape = _pyname(m.group("shape"))
+        cid = translate_expression(m.group("cid").strip())
+        xo = translate_expression(m.group("xo").strip())
+        yo = translate_expression(m.group("yo").strip())
+        prop = "True" if m.group("prop") == "true" else "False"
+        inside = translate_expression(m.group("inside").strip())
+        vis = translate_expression(m.group("vis").strip())
+        ir.emit(
+            f"{name} = ShapeConnectionPin({shape}, {cid}, {xo}, {yo}, "
+            f"{prop}, {inside}, {vis})"
+        )
+        return
+
+    # pin = new ShapeConnectionPin(...);   (reassignment without decl)
+    m = re.match(
+        r"(?P<name>\w+)\s*=\s*new\s+(?:Avoid::)?ShapeConnectionPin\s*\(\s*"
+        r"(?P<shape>\w+)\s*,\s*(?P<cid>[^,]+),\s*"
+        r"(?P<xo>[^,]+),\s*(?P<yo>[^,]+),\s*"
+        r"(?P<prop>true|false)\s*,\s*"
+        r"(?P<inside>[^,]+),\s*(?P<vis>.+?)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        shape = _pyname(m.group("shape"))
+        cid = translate_expression(m.group("cid").strip())
+        xo = translate_expression(m.group("xo").strip())
+        yo = translate_expression(m.group("yo").strip())
+        prop = "True" if m.group("prop") == "true" else "False"
+        inside = translate_expression(m.group("inside").strip())
+        vis = translate_expression(m.group("vis").strip())
+        ir.emit(
+            f"{name} = ShapeConnectionPin({shape}, {cid}, {xo}, {yo}, "
+            f"{prop}, {inside}, {vis})"
+        )
+        return
+
+    # new ShapeConnectionPin(shape, classId, xOff, yOff, proportional,
+    #     insideOff, visDirs);   (value-discard form)
+    m = re.match(
+        r"new\s+(?:Avoid::)?ShapeConnectionPin\s*\(\s*"
+        r"(?P<shape>\w+)\s*,\s*(?P<cid>[^,]+),\s*"
+        r"(?P<xo>[^,]+),\s*(?P<yo>[^,]+),\s*"
+        r"(?P<prop>true|false)\s*,\s*"
+        r"(?P<inside>[^,]+),\s*(?P<vis>.+?)\s*\)$",
+        stmt,
+    )
+    if m:
+        shape = _pyname(m.group("shape"))
+        cid = translate_expression(m.group("cid").strip())
+        xo = translate_expression(m.group("xo").strip())
+        yo = translate_expression(m.group("yo").strip())
+        prop = "True" if m.group("prop") == "true" else "False"
+        inside = translate_expression(m.group("inside").strip())
+        vis = translate_expression(m.group("vis").strip())
+        ir.emit(
+            f"ShapeConnectionPin({shape}, {cid}, {xo}, {yo}, "
+            f"{prop}, {inside}, {vis})"
+        )
+        return
+
+    # pin->setExclusive(bool);
+    m = re.match(
+        r"(?P<name>\w+)->setExclusive\s*\(\s*(?P<v>true|false)\s*\)$", stmt
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        v = "True" if m.group("v") == "true" else "False"
+        ir.emit(f"{name}.exclusive = {v}")
+        return
+
+    # pin->setConnectionCost(cost);
+    m = re.match(
+        r"(?P<name>\w+)->setConnectionCost\s*\(\s*(?P<v>[^)]+)\s*\)$", stmt
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        v = translate_expression(m.group("v").strip())
+        ir.emit(f"{name}.set_connection_cost({v})")
+        return
+
     # router->processTransaction();
     if re.match(r"router->processTransaction\s*\(\s*\)$", stmt):
         ir.emit("router.process_transaction()")
+        return
+
+    # name.attr += value;   (also -=, *=, /=)
+    m = re.match(
+        r"(?P<name>\w+)\.(?P<attr>\w+)\s*(?P<op>[+\-*/])=\s*(?P<v>[^$]+)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        attr = m.group("attr")
+        op = m.group("op")
+        v = translate_expression(m.group("v").strip())
+        ir.emit(f"{name}.{attr} {op}= {v}")
+        return
+
+    # router->moveShape(shape, dx, dy);
+    m = re.match(
+        r"router->moveShape\s*\(\s*(?P<name>\w+)\s*,\s*(?P<dx>[^,]+)\s*,\s*(?P<dy>[^)]+)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        dx = translate_expression(m.group("dx").strip())
+        dy = translate_expression(m.group("dy").strip())
+        ir.emit(f"router.move_shape({name}, {dx}, {dy})")
+        return
+
+    # router->moveShape(shape, newPoly);
+    m = re.match(
+        r"router->moveShape\s*\(\s*(?P<name>\w+)\s*,\s*(?P<poly>\w+)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        poly = _pyname(m.group("poly"))
+        ir.emit(f"router.move_shape({name}, {poly})")
         return
 
     # router->outputDiagram("name");  — we drop output in the Python
@@ -731,6 +1037,20 @@ def classify(ir: TestIR, stmt: str) -> None:
         else:
             ir.emit(f"{name} = router.{method}()")
         ir.bool_vars[name] = ""  # mark declared; actual value at runtime
+        return
+
+    # bool name = (expr->displayRoute().size() OP N);   forwardFlowingConnectors01.
+    m = re.match(
+        r"bool\s+(?P<name>\w+)\s*=\s*\(\s*(?P<obj>\w+)->displayRoute\s*\(\s*\)\s*\.\s*size\s*\(\s*\)\s*(?P<op>==|<=|>=|<|>|!=)\s*(?P<n>\d+)\s*\)$",
+        stmt,
+    )
+    if m:
+        name = _pyname(m.group("name"))
+        obj = _pyname(m.group("obj"))
+        op = m.group("op")
+        n = m.group("n")
+        ir.bool_vars[name] = ""
+        ir.emit(f"{name} = (len({obj}.display_route()) {op} {n})")
         return
 
     # int crossings = router->existsCrossings(args);
@@ -776,6 +1096,23 @@ def classify(ir: TestIR, stmt: str) -> None:
         py_expr = re.sub(r"\s+", " ", py_expr).strip()
         py_expr = _apply_name_translation(py_expr)
         ir.assertions.append(f"assert not ({py_expr})")
+        return
+
+    # return (<bool> ? 0 : 1);  -- success-when-true form (succeeds → exit 0).
+    m = re.match(r"return\s*\(?\s*(?P<expr>\w+)\s*\?\s*0\s*:\s*1\s*\)?$", stmt)
+    if m:
+        expr = _pyname(m.group("expr"))
+        ir.assertions.append(f"assert {expr}")
+        return
+
+    # return varName;   -- exit code is the variable. Upstream tests
+    # use this when the var holds a router->exists* result; non-zero
+    # means failure. Map to ``assert not var`` so the Python test
+    # passes when the upstream binary would have exited 0.
+    m = re.match(r"return\s+(?P<name>\w+)$", stmt)
+    if m:
+        name = _pyname(m.group("name"))
+        ir.assertions.append(f"assert not {name}")
         return
 
     # assert(connRef239->displayRoute().size() == 4);
@@ -859,6 +1196,13 @@ Pass/fail signal mirrors upstream: {pass_fail}.
 """
 
 from libavoid_py import (
+    ATTACH_POS_BOTTOM,
+    ATTACH_POS_CENTRE,
+    ATTACH_POS_LEFT,
+    ATTACH_POS_RIGHT,
+    ATTACH_POS_TOP,
+    CONNECTIONPIN_CENTRE,
+    CONNECTIONPIN_UNSET,
     ConnDirFlag,
     ConnEnd,
     ConnRef,
@@ -871,6 +1215,7 @@ from libavoid_py import (
     RouterFlag,
     RoutingOption,
     RoutingParameter,
+    ShapeConnectionPin,
     ShapeRef,
 )
 

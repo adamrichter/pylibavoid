@@ -8,6 +8,13 @@ Pass/fail signal mirrors upstream: exists_orthogonal_fixed_segment_overlap() mus
 """
 
 from libavoid_py import (
+    ATTACH_POS_BOTTOM,
+    ATTACH_POS_CENTRE,
+    ATTACH_POS_LEFT,
+    ATTACH_POS_RIGHT,
+    ATTACH_POS_TOP,
+    CONNECTIONPIN_CENTRE,
+    CONNECTIONPIN_UNSET,
     ConnDirFlag,
     ConnEnd,
     ConnRef,
@@ -20,6 +27,7 @@ from libavoid_py import (
     RouterFlag,
     RoutingOption,
     RoutingParameter,
+    ShapeConnectionPin,
     ShapeRef,
 )
 

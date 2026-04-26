@@ -31,16 +31,21 @@ Companion to `docs/research/phase0.md` (inventory) and
 | `connector.h` | `ConnRef` | `libavoid_py.ConnRef` | phase 2 | |
 | `connector.h` | `ConnRef::setFixedRoute` + related | `ConnRef.set_fixed_route`, `set_fixed_existing_route`, `has_fixed_route`, `clear_fixed_route` | phase 3 | Added for `penaltyRerouting01`. |
 | `connend.h` | `ConnDirFlag` | `libavoid_py.ConnDirFlag` | phase 2 | |
-| `connend.h` | `ConnEnd` | `libavoid_py.ConnEnd` | phase 2 | Point, point-with-direction-flags, and junction constructors. Pin attachment still pending. |
+| `connend.h` | `ConnEnd` | `libavoid_py.ConnEnd` | phase 2 | Point, point-with-direction-flags, junction, and shape-pin constructors all wrapped. |
 | `connend.h` | `ConnEnd::junction` | `ConnEnd.junction` | phase 4 | Returns the attached :class:`JunctionRef` or ``None``. |
+| `connend.h` | `ConnEnd::shape` | `ConnEnd.shape` | phase 4 | Returns the attached :class:`ShapeRef` (when type is ``ShapePin``) or ``None``. |
+| `connend.h` | `ConnEnd::pinClassId` | `ConnEnd.pin_class_id` | phase 4 | Returns the connection-pin class ID this endpoint targets. |
 | `connend.h` | `ConnEndType` | `libavoid_py.ConnEndType` | phase 2 | |
 | `junction.h` | `JunctionRef` | `libavoid_py.JunctionRef` | phase 4 | Property-style ``position``, ``position_fixed``, ``recommended_position``; ``remove_and_merge_connectors`` (renamed from upstream's ``removeJunctionAndMergeConnectors``); see ADR 0003. |
 | `router.h` | `Router::deleteJunction` | `Router.delete_junction` | phase 4 | |
 | `router.h` | `Router::moveJunction` | `Router.move_junction` | phase 4 | Both Point and (dx, dy) overloads. |
+| `connectionpin.h` | `ShapeConnectionPin` | `libavoid_py.ShapeConnectionPin` | phase 4 | Modern (7-arg) shape ctor and the junction ctor; ``exclusive`` property; see ADR 0004. The pre-3.0 compat ctor is deliberately not wrapped. |
+| `connectionpin.h` | `CONNECTIONPIN_UNSET`, `CONNECTIONPIN_CENTRE` | module-level ints | phase 4 | |
+| `connectionpin.h` | `ATTACH_POS_*` constants | module-level floats | phase 4 | ``ATTACH_POS_LEFT`` aliases ``_TOP``; ``ATTACH_POS_RIGHT`` aliases ``_BOTTOM``. |
 
-Remaining phase-4 areas (connection pins, clusters, hyperedges,
-checkpoints, callbacks) are not wrapped yet. Each gets its own
-phase and decision record.
+Remaining phase-4 areas (clusters, hyperedges, checkpoints,
+callbacks) are not wrapped yet. Each gets its own phase and
+decision record.
 
 ## Upstream test translation status
 
@@ -63,8 +68,8 @@ Status legend:
 
 | upstream test | status | signal / blocker |
 |---------------|--------|------------------|
-| 2junctions | skipped | needs connection pins |
-| buildOrthogonalChannelInfo1 | skipped | needs connection pins |
+| 2junctions | skipped | translator support for state-capture test() harnesses |
+| buildOrthogonalChannelInfo1 | skipped | translator support for state-capture test() harnesses |
 | checkpointNudging1 | skipped | needs checkpoints |
 | checkpointNudging2 | skipped | needs checkpoints |
 | checkpointNudging3 | skipped | needs checkpoints |
@@ -72,22 +77,22 @@ Status legend:
 | checkpoints02 | skipped | needs checkpoints |
 | checkpoints03 | skipped | needs checkpoints |
 | complex | skipped | needs callbacks |
-| connectionpin01 | skipped | needs connection pins |
-| connectionpin02 | skipped | needs connection pins |
-| connectionpin03 | skipped | needs connection pins |
-| connendmove | skipped | needs connection pins |
+| connectionpin01 | passing | crash-only |
+| connectionpin02 | skipped | ShapeRef.transformConnectionPinPositions accessor |
+| connectionpin03 | passing | crash-only |
+| connendmove | skipped | translator support for implicit Point→ConnEnd at call sites |
 | corneroverlap01 | disabled upstream | — |
 | endlessLoop01 | skipped | needs hyperedges |
 | example | skipped | needs callbacks |
 | finalSegmentNudging1 | passing | `exists_crossings() == 0` |
 | finalSegmentNudging2 | passing | `not exists_orthogonal_fixed_segment_overlap(at_ends=True)` |
 | finalSegmentNudging3 | skipped | needs checkpoints |
-| forwardFlowingConnectors01 | skipped | needs connection pins |
+| forwardFlowingConnectors01 | passing | `len(connector6.display_route()) == 4` |
 | freeFloatingDirection01 | passing | `len(conn_ref239.display_route()) == 4` |
-| hola01 | skipped | needs connection pins |
+| hola01 | passing | crash-only |
 | hyperedge01 | skipped | needs hyperedges |
 | hyperedge02 | skipped | needs hyperedges |
-| hyperedgeLoop1 | skipped | needs connection pins |
+| hyperedgeLoop1 | skipped | translator support for state-capture test() harnesses |
 | hyperedgeRerouting01 | skipped | needs hyperedges |
 | improveHyperedge01 | skipped | needs hyperedges |
 | improveHyperedge02 | skipped | needs hyperedges |
@@ -106,13 +111,13 @@ Status legend:
 | inlineoverlap07 | passing | crash-only |
 | inlineoverlap08 | passing | `not exists_orthogonal_fixed_segment_overlap()` |
 | inlineOverlap09 | passing | `not exists_orthogonal_fixed_segment_overlap()` |
-| inlineOverlap10 | skipped | needs connection pins |
+| inlineOverlap10 | passing | `not exists_orthogonal_fixed_segment_overlap()` |
 | inlineOverlap11 | skipped | needs hyperedges |
-| inlineShapes | skipped | needs connection pins |
-| junction01 | skipped | needs connection pins |
+| inlineShapes | passing | crash-only |
+| junction01 | passing | crash-only |
 | junction02 | passing | crash-only |
 | junction03 | passing | crash-only |
-| junction04 | skipped | needs connection pins |
+| junction04 | skipped | ConnRef.splitAtSegment accessor |
 | latesetup | skipped | needs callbacks |
 | lineSegWrapperCrash1 | passing | crash-only |
 | lineSegWrapperCrash2 | passing | crash-only |
@@ -123,7 +128,7 @@ Status legend:
 | lineSegWrapperCrash7 | passing | crash-only |
 | lineSegWrapperCrash8 | passing | crash-only |
 | multiconnact | skipped | needs callbacks |
-| node1 | skipped | needs connection pins |
+| node1 | passing | crash-only |
 | nudgeCrossing01 | skipped | needs checkpoints |
 | nudgeintobug | passing | `not (overlap or touching)` |
 | nudgeold | passing | crash-only |
@@ -136,25 +141,35 @@ Status legend:
 | penaltyRerouting01 | passing | `exists_crossings() == 0` |
 | performance01 | passing | crash-only |
 | reallyslowrouting | disabled upstream | — |
-| removeJunctions01 | skipped | needs connection pins |
+| removeJunctions01 | skipped | translator support for endpoint connectivity assertion |
 | restrictedNudging | passing | `not exists_orthogonal_touching_paths()` |
 | slowrouting | passing | crash-only |
 | tjunct | passing | crash-only |
 | treeRootCrash01 | skipped | needs hyperedges |
 | treeRootCrash02 | skipped | needs hyperedges |
 | unsatisfiableRangeAssertion | disabled upstream | — |
-| validPaths01 | skipped | needs connection pins |
-| validPaths02 | skipped | needs connection pins |
+| validPaths01 | passing | `not exists_invalid_orthogonal_paths()` |
+| validPaths02 | passing | `not exists_invalid_orthogonal_paths()` |
 | vertlineassertion | passing | crash-only |
 
 ## Summary
 
-- **passing**: 36 / 83
-- **skipped (phase-4 feature gap)**: 44 / 83 — grouped:
-  - needs connection pins: 17
-  - needs hyperedges: 13
-  - needs checkpoints: 10
-  - needs callbacks: 4
+- **passing**: 46 / 83
+- **skipped**: 34 / 83 — grouped:
+  - feature gaps:
+    - needs hyperedges: 13
+    - needs checkpoints: 10
+    - needs callbacks: 4
+  - translator gaps (binding is complete; the upstream test uses a
+    pattern the auto-translator does not yet emit):
+    - state-capture ``test()`` harnesses
+      (`2junctions`, `buildOrthogonalChannelInfo1`, `hyperedgeLoop1`)
+    - implicit Point→ConnEnd at call sites (`connendmove`)
+    - endpoint connectivity assertion (`removeJunctions01`)
+  - small unwrapped accessors (one-line follow-up each, deferred to
+    keep this PR focused):
+    - `ShapeRef.transformConnectionPinPositions` (`connectionpin02`)
+    - `ConnRef.splitAtSegment` (`junction04`)
 - **disabled upstream**: 3 / 83
 
 Phase 4 progresses one feature at a time; each feature lands its
@@ -163,8 +178,7 @@ were waiting on it. Re-run `python scripts/translate_upstream.py`
 after a feature lands to regenerate tests against the new wrapper
 surface.
 
-Junctions (ADR 0003) landed in this phase. Six tests originally
-tagged "needs junctions" turned out to also need connection pins
-(2junctions, buildOrthogonalChannelInfo1, hyperedgeLoop1,
-junction04, node1, removeJunctions01) and are now tagged
-accordingly; they will unblock when pins land.
+Junctions (ADR 0003) and connection pins (ADR 0004) have both
+landed. The remaining feature gaps (hyperedges, checkpoints,
+callbacks) are the natural next phases; the small translator and
+accessor gaps above can be picked up opportunistically.
