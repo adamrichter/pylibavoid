@@ -5,6 +5,7 @@
 #include <string>
 
 #include "libavoid/connector.h"
+#include "libavoid/junction.h"
 #include "libavoid/router.h"
 #include "libavoid/shape.h"
 
@@ -184,6 +185,30 @@ void register_router(py::module_& m) {
             ":py:meth:`delete_shape`, this deletes the underlying "
             "C++ object immediately; the Python ConnRef wrapper is "
             "invalid from this point and must not be touched.")
+        .def("delete_junction", &Avoid::Router::deleteJunction,
+            py::arg("junction"),
+            "Queue the removal of ``junction`` from the router. The "
+            "underlying C++ object is freed during the next "
+            ":py:meth:`process_transaction`; after that the Python "
+            "JunctionRef wrapper is invalid and must not be "
+            "touched. Connectors attached to the junction are "
+            "marked for rerouting.")
+        .def("move_junction",
+            [](Avoid::Router& r, Avoid::JunctionRef* junction, const Avoid::Point& newPosition) {
+                r.moveJunction(junction, newPosition);
+            },
+            py::arg("junction"), py::arg("new_position"),
+            "Move ``junction`` to ``new_position``, marking attached "
+            "connectors as needing rerouting. Call "
+            ":py:meth:`process_transaction` to actually reroute "
+            "them when transactions are enabled (the default).")
+        .def("move_junction",
+            [](Avoid::Router& r, Avoid::JunctionRef* junction, double dx, double dy) {
+                r.moveJunction(junction, dx, dy);
+            },
+            py::arg("junction"), py::arg("dx"), py::arg("dy"),
+            "Translate ``junction`` by (``dx``, ``dy``). Same "
+            "rerouting semantics as the position-form overload.")
         .def("output_diagram",
             [](Avoid::Router& r, const std::string& name) {
                 r.outputDiagram(name);

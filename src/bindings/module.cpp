@@ -26,8 +26,12 @@ PYBIND11_MODULE(_core, m) {
     // delete_connector method and ShapeRef's attached_connectors both
     // reference; register it before the Router and ShapeRef bindings
     // so pybind11 knows about those types when building the method
-    // signatures.
+    // signatures. Junction-related signatures in connector.cpp /
+    // router.cpp use forward-declared JunctionRef* arguments resolved
+    // at call time — register_junction below registers the type
+    // before any user code can invoke those signatures.
     pylibavoid::register_connector(m);
     pylibavoid::register_router(m);
     pylibavoid::register_shape(m);
+    pylibavoid::register_junction(m);
 }
